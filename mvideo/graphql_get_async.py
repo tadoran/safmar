@@ -3,33 +3,40 @@ import copy
 
 from aiohttp import ClientSession
 
-from async_objects import GraphqlCategoryDevices, GraphqlActions, GraphqlDeviceDetails, GraphqlPrice
+from graphql.category_devices import GraphqlCategoryDevices
+from graphql.actions import GraphqlActions
+from graphql.price import GraphqlPrice
+from graphql.device_details import GraphqlDeviceDetails
 
 
 async def send_request(session: ClientSession, **kwargs) -> dict:
     category = kwargs.pop("category", None)
     req_num = kwargs.pop("req_num", None)
+    await asyncio.sleep(0.001)
     try:
         async with session.post(**kwargs) as resp:
             try:
-                print(f"Category _{category}_ - request #{req_num}")
+                print(f"Category _{category}_ - request #{req_num}.")
             except:
                 pass
+            try:
+                resp_json = await resp.json()
+            except:
+                return {}
 
-            resp_json = await resp.json()
             if resp.status != 200:
-                return {None}
+                return {}
             elif resp_json.get("errors", None) is not None:
-                return None
+                return {}
             else:
                 try:
-                    print(f"Category _{category}_ - request #{req_num} - recieved")
+                    print(f"Category _{category}_ - request #{req_num} - received.")
                 except:
                     pass
                 return resp_json
 
     except ValueError:
-        return None
+        return {}
 
 
 async def get_category_devices(category: int, session: ClientSession) -> list:
@@ -51,19 +58,19 @@ async def get_category_devices(category: int, session: ClientSession) -> list:
             cur_request_kwargs["category"] = graphql_category.category
             cur_request_kwargs["req_num"] = i + 1
             followed_requests_results.append(
-                send_request(session, **cur_request_kwargs))
+                await send_request(session, **cur_request_kwargs))
 
-        [graphql_category.http_responses.append(await task) for task in followed_requests_results]
+        [graphql_category.http_responses.append(task) for task in followed_requests_results]
         return graphql_category.parse()
     else:
-        return None
+        return []
 
 
 async def get_device_info_w_slice(session: ClientSession, graphql_instance: object, **kwargs: object) -> list:
     """
     Recursive function to get all results from a given graphql-object
     :param session: aiohttp.ClientSession to manage requests
-    :param graphql_instance: Graphql-   0descendant instance to request from
+    :param graphql_instance: Graphql-descendant instance to request from
     :param kwargs: http arguments, which should be passed to http request
     :return:
     """
@@ -143,7 +150,7 @@ async def get_devices_info(
         final_dict[key] = {}
         for dic in graphql_objects_results:
             if dic.get(str(key), False):
-                final_dict[key].update(dic[key])
+                final_dict[key].update(dic[str(key)])
 
     # return collected information
     return final_dict
@@ -202,7 +209,7 @@ if __name__ == "__main__":
         "Грили": 198,
         "Кофеварки": 157,
         "Кофеварки капсульного типа": 330,
-        "кофемашины": 155,
+        "Кофемашины": 155,
         "Кофемолки": 145,
         "Кухонные машины и комбайны": 156,
         "Миксеры и блендеры": 98,
@@ -224,8 +231,8 @@ if __name__ == "__main__":
     })
 
     run_tasks = ({
-        "MDA": bsh_MDA_categories,
-        "SDA": bsh_SDA_categories,
+        # "MDA": bsh_MDA_categories,
+        # "SDA": bsh_SDA_categories,
         "Printers": bro_categories
     })
 

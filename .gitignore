@@ -1,5 +1,9 @@
 /venv/
 /.idea/
 /mvideo/output/
+*/__pycache__/
+/*/tmp/
 
-mvideo/__pycache__/
+output/
+
+mvideo/graphql/__pycache__/
