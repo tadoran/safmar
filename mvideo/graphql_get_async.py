@@ -37,7 +37,7 @@ async def send_request(session: ClientSession, **kwargs) -> dict:
 
     except ValueError:
         return {}
-
+    return {}
 
 async def get_category_devices(category: int, session: ClientSession) -> list:
     graphql_category = GraphqlCategoryDevices(category)
@@ -48,8 +48,10 @@ async def get_category_devices(category: int, session: ClientSession) -> list:
     result = await send_request(session, **cur_request_kwargs)
     if result is not None:
         graphql_category.http_responses.append(result)
-
-        total_devices = graphql_category.http_responses[0]["data"]["searchListing"]["result"]["groups"][0]["total"]
+        try:
+            total_devices = graphql_category.http_responses[0]["data"]["searchListing"]["result"]["groups"][0]["total"]
+        except KeyError:
+            total_devices = 0
         print(f"Category _{category}_ has {total_devices} devices.")
         followed_requests_results = []
         for i, offset in enumerate(
@@ -58,9 +60,9 @@ async def get_category_devices(category: int, session: ClientSession) -> list:
             cur_request_kwargs["category"] = graphql_category.category
             cur_request_kwargs["req_num"] = i + 1
             followed_requests_results.append(
-                await send_request(session, **cur_request_kwargs))
+                send_request(session, **cur_request_kwargs))
 
-        [graphql_category.http_responses.append(task) for task in followed_requests_results]
+        [graphql_category.http_responses.append(await task) for task in followed_requests_results]
         return graphql_category.parse()
     else:
         return []
@@ -128,18 +130,22 @@ async def get_devices_info(
             # Sub-request identifier (for logging)
             sub_request_kwargs_copy["req_num"] = i
             # Push awaitable with given params
-            sub_request_results = await asyncio.create_task(
+            sub_request_results = asyncio.create_task(
                 get_device_info_w_slice(
                     session,
                     graphql_instance,
                     **sub_request_kwargs_copy
                 )
             )
-
             # Adding current sub-request to pending queue
-            followed_requests_results.extend(sub_request_results)
+            followed_requests_results.append(sub_request_results)
+
+        await asyncio.gather(*followed_requests_results)
+
         # Collect all sub-request results for a given graphql-object
-        [graphql_instance.http_responses.append(result) for result in followed_requests_results if result is not None]
+        # [graphql_instance.http_responses.append(result) for result in followed_requests_results if result is not None]
+        graphql_instance.http_responses.extend([tsk.result()[0] for tsk in followed_requests_results if tsk.result() is not None])
+
         # Parse all requests of a given graphql object and push results to all-graphql-objects dict
         graphql_objects_results.append(graphql_instance.parse())
 
@@ -231,8 +237,8 @@ if __name__ == "__main__":
     })
 
     run_tasks = ({
-        # "MDA": bsh_MDA_categories,
-        # "SDA": bsh_SDA_categories,
+        "MDA": bsh_MDA_categories,
+        "SDA": bsh_SDA_categories,
         "Printers": bro_categories
     })
 

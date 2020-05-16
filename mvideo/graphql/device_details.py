@@ -1,6 +1,3 @@
-#  Copyright (c) 2020, Gorelov K.G
-#
-
 from graphql.device_based_mixin import DeviceBasedMixin
 from graphql.graphql import Graphql
 

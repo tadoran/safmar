@@ -1,9 +1,10 @@
 from sqlalchemy import Column, String, Integer
 from sqlalchemy import Table, ForeignKey
-
 from sqlalchemy.orm import relationship
 
-from base import Base
+from sql.base import Base
+from sql.task import Task
+from sql.repr_mixin import ReprMixin
 
 
 category_device_association = Table('cat_dev_assoc', Base.metadata,
@@ -12,7 +13,7 @@ category_device_association = Table('cat_dev_assoc', Base.metadata,
                                     )
 
 
-class Category(Base):
+class Category(ReprMixin, Base):
     __tablename__ = "category"
 
     category_id = Column(Integer, primary_key=True)
@@ -25,8 +26,8 @@ class Category(Base):
         self.category_id = category_id
         self.name = name
 
-    def __repr__(self):
-        return f"{self.__class__.__name__}('{self.name}')"
+    # def __repr__(self):
+    #     return f"{self.__class__.__name__}('{self.name}')"
 
     def __str__(self):
         return f"{self.name} ({self.category_id})"

@@ -34,13 +34,12 @@ class GraphqlCategoryDevices(Graphql):
 
     def parse(self):
         final_list = []
-        [
-            final_list.extend(
-                r["data"]["searchListing"]["result"]["groups"][0]["items"]
-            )
-            for r in self.http_responses
-            if not r is None
-        ]
+        for i, r in enumerate(self.http_responses):
+            if r is not None:
+                try:
+                    final_list.extend(r["data"]["searchListing"]["result"]["groups"][0]["items"])
+                except KeyError:
+                    print(f"Could not find any data in request responce #{i}")
         self.parsed_results = final_list
         return self.parsed_results
 

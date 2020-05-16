@@ -19,37 +19,42 @@ async def get_devices_details(devices: list = []):
                                         )
     return result
 
-session = Session(bind=engine)
-Base.metadata.create_all(bind=engine)
 
-devs = (session
-               .query(Device.product_id)
-               .filter(Device.name == "")
-               .join(Device.device_categories)
-               .join(Category.tasks)
-               # .filter(Task.name == "Test")
-               .all()
-        )
-devs_list = [t.product_id for t in devs]
-print(devs_list)
-print(len(devs_list))
+def get_devices_information(session):
+    devs = (session
+                   .query(Device.product_id)
+                   .filter(Device.name == "")
+                   .join(Device.device_categories)
+                   .join(Category.tasks)
+                   # .filter(Task.name == "Test")
+                   .all()
+            )
+    devs_list = [t.product_id for t in devs]
+    print(devs_list)
+    print(len(devs_list))
+    
+    base_url = "https://www.mvideo.ru/products/"
+    chunksize = 400
+    ran = list(range(0, len(devs_list)+1, chunksize))
+    details_chunks = (devs_list[i:i+chunksize] for i in ran)
+    for chunk in details_chunks:
+        details = asyncio.run(get_devices_details(chunk))
+        for article, dev_details in details.items():
+            if len(dev_details) == 0: continue
+            device = Device(
+                product_id=int(article),
+                name=dev_details.get("desr", None),
+                url=base_url + dev_details.get("link", None),
+                brand=dev_details.get("brand", None),
+                image_url=dev_details.get("imgUrl", None)
+            )
+            session.merge(device)
+        session.commit()
+        print(chunk)
 
-base_url = "https://www.mvideo.ru/products/"
-chunksize = 400
-ran = list(range(0, len(devs_list)+1, chunksize))
-details_chunks = (devs_list[i:i+chunksize] for i in ran)
-for chunk in details_chunks:
-    details = asyncio.run(get_devices_details(chunk))
-    for article, dev_details in details.items():
-        if len(dev_details) == 0: continue
-        device = Device(
-            product_id=int(article),
-            name=dev_details.get("desr", None),
-            url=base_url + dev_details.get("link", None),
-            brand=dev_details.get("brand", None),
-            image_url=dev_details.get("imgUrl", None)
-        )
-        session.merge(device)
-    session.commit()
-    print(chunk)
 
+if __name__ == "__main__":
+    session = Session(bind=engine)
+    Base.metadata.create_all(bind=engine)
+
+    get_devices_information(session)

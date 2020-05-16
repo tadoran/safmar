@@ -10,8 +10,6 @@ from aiohttp import ClientSession
 from graphql_get_async import get_devices_info
 from graphql.price import GraphqlPrice
 
-session = Session(bind=engine)
-Base.metadata.create_all(bind=engine)
 
 async def get_prices(devices: list)-> dict:
     """Get Graphql prices data
@@ -21,75 +19,84 @@ async def get_prices(devices: list)-> dict:
         res = await get_devices_info(devices, session, [GraphqlPrice])
         return res
 
-# Get all devices articles from BD where there is no parsing results today yet
-# SELECT * FROM device WHERE device.product_id NOT IN
-#       (SELECT price.product FROM price WHERE CURRENT_DATE BETWEEN price.start_date AND price.end_date)
-existent_prices = session.query(Price.product).filter(current_date().between(Price.start_date, Price.end_date))
-q = (session
-            .query(Device.product_id)
-            # .join(Device.device_categories)
-            # .join(Category.tasks)
-            # .filter(Task.name == "Test")
-            .filter(Device.product_id.notin_(existent_prices.subquery()))
-            # .limit(1000)
-     )
-devices = [dev.product_id for dev in q]
 
-if len(devices) == 0:
-    print("All data is up to date.")
-else:
-    print(f"{len(devices)} price entities should be quiered")
+def get_device_prices(session):
+    # Get all devices articles from BD where there is no parsing results today yet
+    # SELECT * FROM device WHERE device.product_id NOT IN
+    #       (SELECT price.product FROM price WHERE CURRENT_DATE BETWEEN price.start_date AND price.end_date)
+    existent_prices = session.query(Price.product).filter(current_date().between(Price.start_date, Price.end_date))
+    q = (session
+                .query(Device.product_id)
+                # .join(Device.device_categories)
+                # .join(Category.tasks)
+                # .filter(Task.name == "Test")
+                .filter(Device.product_id.notin_(existent_prices.subquery()))
+                # .limit(1000)
+         )
+    devices = [dev.product_id for dev in q]
 
-    # SELECT * FROM price WHERE end_date = (select MAX(end_date) from price WHERE end_date < CURRENT_DATE)
-    last_date = session.query(sql_max(Price.end_date)).filter(Price.end_date < current_date())
+    if len(devices) == 0:
+        print("All data is up to date.")
+    else:
+        print(f"{len(devices)} price entities should be quiered")
 
-    # Query all price results from last parsing, having devices that are needed.
-    # This is used for updating entries if nothing changed from last parsing.
-    # In this case we will update end_date, but will not create new row.
+        # SELECT * FROM price WHERE end_date = (select MAX(end_date) from price WHERE end_date < CURRENT_DATE)
+        last_date = session.query(sql_max(Price.end_date)).filter(Price.end_date < current_date())
 
-    if len(devices) <= 50:  # If we have few results - use cached values
-        prev_date_results = (session
-                                .query(Price)
-                                .filter(Price.product.in_(devices))
-                                .filter(Price.end_date.in_(last_date.subquery()))
-                                .all()
-                             )
-    else:                   # If we have a lot of results - make subquery
-        prev_date_results = (session
-                                .query(Price)
-                                .filter(Price.product.in_(q.subquery()))
-                                .filter(Price.end_date.in_(last_date.subquery()))
-                                .all()
-                             )
+        # Query all price results from last parsing, having devices that are needed.
+        # This is used for updating entries if nothing changed from last parsing.
+        # In this case we will update end_date, but will not create new row.
 
-    # Build hashes from last parsing results
-    prev_day_results_hashed = {(entry.product, entry.action_price, entry.base_price, entry.economy): entry
-                               for entry in prev_date_results
-                               }
+        if len(devices) <= 50:  # If we have few results - use cached values
+            prev_date_results = (session
+                                    .query(Price)
+                                    .filter(Price.product.in_(devices))
+                                    .filter(Price.end_date.in_(last_date.subquery()))
+                                    .all()
+                                 )
+        else:                   # If we have a lot of results - make subquery
+            prev_date_results = (session
+                                    .query(Price)
+                                    .filter(Price.product.in_(q.subquery()))
+                                    .filter(Price.end_date.in_(last_date.subquery()))
+                                    .all()
+                                 )
 
-    # Split info requesting & DB insert/upsert operations into reasonable-sized chunks
-    insert_limit = 2000
-    slices = list(range(0, len(devices), insert_limit))
+        # Build hashes from last parsing results
+        prev_day_results_hashed = {(entry.product, entry.action_price, entry.base_price, entry.economy): entry
+                                   for entry in prev_date_results
+                                   }
 
-    for part in slices:
-        print(f"Getting part from {part} to {part+insert_limit+1}.")
-        # Make a request to M.Video graphql
-        results = asyncio.run(get_prices(devices[part:part+insert_limit+1]))
+        # Split info requesting & DB insert/upsert operations into reasonable-sized chunks
+        insert_limit = 2000
+        slices = list(range(0, len(devices), insert_limit))
 
-        # For each device - check if last parsing results contain similar info
-        for i, (key, val) in enumerate(results.items()):
-            # Hash = (entry.product, entry.action_price, entry.base_price, entry.economy)
-            cur_el_hash = (key, val['actionPrice'], val['basePrice'], val['economy'])
+        for part in slices:
+            print(f"Getting part from {part} to {part+insert_limit+1}.")
+            # Make a request to M.Video graphql
+            results = asyncio.run(get_prices(devices[part:part+insert_limit+1]))
 
-            # Existent entry - will be updated
-            if cur_el_hash in prev_day_results_hashed:
-                prev_day_results_hashed[cur_el_hash].end_date = current_date()
-                session.merge(prev_day_results_hashed[cur_el_hash])
+            # For each device - check if last parsing results contain similar info
+            for i, (key, val) in enumerate(results.items()):
+                # Hash = (entry.product, entry.action_price, entry.base_price, entry.economy)
+                cur_el_hash = (key, val['actionPrice'], val['basePrice'], val['economy'])
 
-            # New entry - will be created
-            else:
-                cur_price = Price(key, base_price=val['basePrice'], action_price=val['actionPrice'], economy=val['economy'])
-                session.merge(cur_price)
+                # Existent entry - will be updated
+                if cur_el_hash in prev_day_results_hashed:
+                    prev_day_results_hashed[cur_el_hash].end_date = current_date()
+                    session.merge(prev_day_results_hashed[cur_el_hash])
 
-        session.commit()
-    print("All data was parsed.")
+                # New entry - will be created
+                else:
+                    cur_price = Price(key, base_price=val['basePrice'], action_price=val['actionPrice'], economy=val['economy'])
+                    session.merge(cur_price)
+
+            session.commit()
+        print("All data was parsed.")
+
+
+if __name__ == "__main__":
+    session = Session(bind=engine)
+    Base.metadata.create_all(bind=engine)
+
+    get_device_prices(session)

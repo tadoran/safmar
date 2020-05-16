@@ -1,10 +1,14 @@
-from sqlalchemy import Column, String, Integer, ForeignKey
+from sqlalchemy import Column, String, Integer
 from sqlalchemy.orm import relationship
 
-from base import Base
+from sql.base import Base
 
+from sql.category import Category
+from sql.repr_mixin import ReprMixin
 
-class Device(Base):
+from sql.price import Price
+
+class Device(ReprMixin,Base):
     __tablename__ = "device"
 
     product_id = Column(Integer, primary_key=True)
@@ -12,7 +16,6 @@ class Device(Base):
     url = Column(String)
     brand = Column(String)
     image_url = Column(String)
-    # category = Column(ForeignKey('category.category_id'))
 
     device_categories = relationship(
                             "Category",
@@ -20,6 +23,7 @@ class Device(Base):
                             back_populates="devices",
                             # cascade="all"
                             )
+    prices = relationship("Price")
 
     def __init__(self, product_id: int, name: str = "", url: str = "", brand: str = "", image_url: str = "", categories: list = []):
         self.product_id = int(product_id)
@@ -29,7 +33,6 @@ class Device(Base):
         self.image_url = image_url
         self.categories = []
         for cat in categories:
-            self.device_categories.append(int(cat))  # = Category(int(cat["id"]), str(cat["name"]))
+            self.device_categories.append(int(cat))
 
-    def __str__(self):
-        return f"{self.name} ({self.product_id})"
+
