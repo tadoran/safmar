@@ -1,6 +1,5 @@
 from sqlalchemy import Column, String, Integer
 from sqlalchemy import Table, ForeignKey
-
 from sqlalchemy.orm import relationship
 
 from sql.base import Base
@@ -16,13 +15,12 @@ class Task(ReprMixin, Base):
     __tablename__ = "task"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String)
+    name = Column(String(25))
 
-    categories = relationship("Category", secondary="task_cat_assoc",  back_populates="tasks")
+    categories = relationship("Category", secondary="task_cat_assoc", back_populates="tasks")
 
     def __init__(self, name):
         self.name = name
-
 
     def __str__(self):
         return f"{self.name} ({self.id})"

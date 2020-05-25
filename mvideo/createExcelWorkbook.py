@@ -134,6 +134,7 @@ def process_results_to_xlsx(
 
 if __name__ == "__main__":
     import json
+
     with open("G:/serv/dns/mvideo/output.json", "r", encoding="utf8") as f:
         dict_to_save = json.loads(f.read())
     filepath = process_results_to_xlsx(dict_to_save, save_file_name="test.xlsx")

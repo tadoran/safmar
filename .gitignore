@@ -1,13 +1,8 @@
 /venv/
 /.idea/
 /mvideo/output/
-*/__pycache__/
-/*/tmp/
-
-output/
-
-mvideo/graphql/__pycache__/
-
+*/*/__pycache__/
+*/*/tmp/
 *.xlsx
 
-mvideo/sql/__pycache__/
+mvideo/tmp/

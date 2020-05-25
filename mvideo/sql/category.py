@@ -3,9 +3,8 @@ from sqlalchemy import Table, ForeignKey
 from sqlalchemy.orm import relationship
 
 from sql.base import Base
-from sql.task import Task
 from sql.repr_mixin import ReprMixin
-
+from sql.task import Task
 
 category_device_association = Table('cat_dev_assoc', Base.metadata,
                                     Column('category_id', Integer, ForeignKey('category.category_id')),
@@ -17,10 +16,10 @@ class Category(ReprMixin, Base):
     __tablename__ = "category"
 
     category_id = Column(Integer, primary_key=True)
-    name = Column(String)
+    name = Column(String(50))
 
-    devices = relationship("Device", secondary="cat_dev_assoc",  back_populates="device_categories")
-    tasks   = relationship("Task",   secondary="task_cat_assoc", back_populates="categories")
+    devices = relationship("Device", secondary="cat_dev_assoc", back_populates="device_categories")
+    tasks = relationship("Task", secondary="task_cat_assoc", back_populates="categories")
 
     def __init__(self, category_id: int, name: str):
         self.category_id = category_id

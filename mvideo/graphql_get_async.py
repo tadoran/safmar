@@ -3,10 +3,10 @@ import copy
 
 from aiohttp import ClientSession
 
-from graphql.category_devices import GraphqlCategoryDevices
 from graphql.actions import GraphqlActions
-from graphql.price import GraphqlPrice
+from graphql.category_devices import GraphqlCategoryDevices
 from graphql.device_details import GraphqlDeviceDetails
+from graphql.price import GraphqlPrice
 
 
 async def send_request(session: ClientSession, **kwargs) -> dict:
@@ -38,6 +38,7 @@ async def send_request(session: ClientSession, **kwargs) -> dict:
     except ValueError:
         return {}
     return {}
+
 
 async def get_category_devices(category: int, session: ClientSession) -> list:
     graphql_category = GraphqlCategoryDevices(category)
@@ -144,7 +145,8 @@ async def get_devices_info(
 
         # Collect all sub-request results for a given graphql-object
         # [graphql_instance.http_responses.append(result) for result in followed_requests_results if result is not None]
-        graphql_instance.http_responses.extend([tsk.result()[0] for tsk in followed_requests_results if tsk.result() is not None])
+        graphql_instance.http_responses.extend(
+            [tsk.result()[0] for tsk in followed_requests_results if tsk.result() is not None])
 
         # Parse all requests of a given graphql object and push results to all-graphql-objects dict
         graphql_objects_results.append(graphql_instance.parse())
@@ -238,8 +240,8 @@ if __name__ == "__main__":
 
     run_tasks = ({
         "MDA": bsh_MDA_categories,
-        "SDA": bsh_SDA_categories,
-        "Printers": bro_categories
+        # "SDA": bsh_SDA_categories,
+        # "Printers": bro_categories
     })
 
     parsing_date = date.today()

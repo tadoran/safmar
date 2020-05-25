@@ -1,12 +1,12 @@
-from sql.base import Session, engine, Base
-from sql.task import Task
-from sql.category import Category
-from sql.device import Device
+import asyncio
+
+from aiohttp import ClientSession
 
 from graphql_get_async import get_category_devices
-
-import asyncio
-from aiohttp import ClientSession
+from sql.base import Session, engine, Base
+from sql.category import Category
+from sql.device import Device
+from sql.task import Task
 
 
 async def get_all_category_devices(categories: dict):
@@ -22,12 +22,11 @@ async def get_all_category_devices(categories: dict):
 
 
 def get_new_devices(session):
-
     # Which task should be processed?
     tasks = (session
-                    .query(Task)
-                    # .filter(Task.name == "Test")
-                    .all()
+             .query(Task)
+             # .filter(Task.name == "Test")
+             .all()
              )
 
     # Categories to be processed
@@ -46,7 +45,7 @@ def get_new_devices(session):
         for device in cat_devices:
             if int(device) not in db_devices:
                 dev = Device(product_id=int(device))
-                dev.device_categories.append(Category(cat_key, cat_name))
+                dev.device_categories.append(session.merge(Category(cat_key, cat_name)))
                 new_devices.append(dev.product_id)
                 session.merge(dev)
             else:
