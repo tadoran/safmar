@@ -16,12 +16,13 @@ async def send_request(session: ClientSession, **kwargs) -> dict:
     try:
         async with session.post(**kwargs) as resp:
             try:
-                print(f"Category _{category}_ - request #{req_num}.")
+                print(f"Category _{category}_ - request #{req_num}")
             except:
                 pass
             try:
                 resp_json = await resp.json()
-            except:
+            except Exception as e:
+                print(e)
                 return {}
 
             if resp.status != 200:
@@ -86,7 +87,7 @@ async def get_device_info_w_slice(session: ClientSession, graphql_instance: obje
 
     http_response = await asyncio.create_task(send_request(session, **sub_request_kwargs))
 
-    if http_response is None:
+    if not http_response:
         cur_devices = sub_request_kwargs["json"]["variables"]["productIds"]
         if len(cur_devices) > 1:
             parts = ([
@@ -97,7 +98,11 @@ async def get_device_info_w_slice(session: ClientSession, graphql_instance: obje
                 sub_request_kwargs_copy = copy.deepcopy(sub_request_kwargs)
                 sub_request_kwargs_copy["json"]["variables"]["productIds"] = part
                 sub_request_kwargs_copy["req_num"] = f"{req_num}.{i}"
-                request_results.append(await asyncio.create_task(send_request(session, **sub_request_kwargs_copy)))
+                request_results.append(await get_device_info_w_slice(
+                                                                     session,
+                                                                     graphql_instance,
+                                                                     **sub_request_kwargs_copy
+                                                                    ))
     else:
         request_results.append(http_response)
     return request_results

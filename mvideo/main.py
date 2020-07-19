@@ -12,6 +12,7 @@ if __name__ == "__main__":
     session = Session(bind=engine)
     Base.metadata.create_all(bind=engine)
 
+
     get_new_devices(session)
     get_devices_information(session)
     get_device_prices(session)
